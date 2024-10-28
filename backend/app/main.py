@@ -1,8 +1,15 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from app.routers import code_execution, file_management
+from app.core.config import settings
+from app.core.exceptions import PyDitorException, CodeExecutionError, FileOperationError
+from app.core.error_handlers import (
+    pyditor_exception_handler,
+    code_execution_error_handler,
+    file_operation_error_handler
+)
+from app.core.middleware import LoggingMiddleware, RateLimitMiddleware
+from app.routers import code_execution, file_management, websocket
 import logging
 
 # Configure logging
@@ -13,66 +20,38 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="PyDitor v2",
+    title=settings.PROJECT_NAME,
     description="Python IDE Backend API",
-    version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    version=settings.VERSION
 )
 
-# Configure CORS
+# Add middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=settings.CORS_CREDENTIALS,
+    allow_methods=settings.CORS_METHODS,
+    allow_headers=settings.CORS_HEADERS,
 )
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(RateLimitMiddleware, max_requests=100, window_seconds=60)
 
-# Include routers with versioned prefix
-app.include_router(
-    code_execution.router,
-    prefix="/api/v1",
-    tags=["code-execution"]
-)
-app.include_router(
-    file_management.router,
-    prefix="/api/v1",
-    tags=["file-management"]
-)
+# Add exception handlers
+app.add_exception_handler(PyDitorException, pyditor_exception_handler)
+app.add_exception_handler(CodeExecutionError, code_execution_error_handler)
+app.add_exception_handler(FileOperationError, file_operation_error_handler)
 
-@app.get("/")
-async def root():
-    """Root endpoint providing API information"""
-    return JSONResponse({
-        "name": "PyDitor v2 API",
-        "version": "2.0.0",
-        "endpoints": {
-            "documentation": "/docs",
-            "redoc": "/redoc",
-            "code_execution": "/api/v1/execution/run",
-            "file_management": "/api/v1/files/save"
-        }
-    })
+# Include routers
+app.include_router(code_execution.router, prefix=settings.API_V1_STR)
+app.include_router(file_management.router, prefix=settings.API_V1_STR)
+app.include_router(websocket.router)
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    """Global exception handler for unhandled errors"""
-    logger.error(f"Unhandled error: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "detail": "Internal server error",
-            "message": str(exc)
-        }
-    )
-
-# Startup event
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Starting PyDitor v2 Backend API")
+    logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
+    # Create workspace directory if it doesn't exist
+    settings.WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
 
-# Shutdown event
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("Shutting down PyDitor v2 Backend API")
+    logger.info(f"Shutting down {settings.PROJECT_NAME}")
