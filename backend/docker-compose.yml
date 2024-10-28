@@ -1,0 +1,35 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/pyditor
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=production
+    volumes:
+      - ./workspace:/app/workspace
+    depends_on:
+      - db
+    networks:
+      - pyditor-network
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=pyditor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pyditor-network
+
+volumes:
+  postgres_data:
+
+networks:
+  pyditor-network:
