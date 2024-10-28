@@ -92,7 +92,7 @@ These enhancements aim to make PyDitor even more powerful, collaborative, and ad
 
 - **GitHub**: [Sifat Ali](https://github.com/UIU-Developers-Hub)
 - **Email**: sifatali0051@gmail.com
-- **GitHub**: https://github.com/SifatAli008
+- **LinkedIn**: [SifatAli](https://www.linkedin.com/in/sifat-ali/)
 
 ---
 
