@@ -1,25 +1,21 @@
 # PyDitor v2.0
 
+**PyDitor** is a multi-language Integrated Development Environment (IDE) available as both a desktop application and web platform. Built with Electron, React, and FastAPI, it provides a comprehensive development environment with support for multiple programming languages.
+
 ## Overview
-**PyDitor**  is a multi-language Integrated Development Environment (IDE) available as both a desktop application and web platform. Built with Electron, React, and FastAPI, it provides a comprehensive development environment with support for multiple programming languages.
+
+PyDitor is designed to support code execution, file management, and real-time collaboration, with future enhancements planned for integration with AI, Docker, and Firebase for extended capabilities.
 
 ## Distribution Types
 
-## 1. Desktop Application (Primary)
-- Standalone executable for Windows, macOS, and Linux
-- Local file system access
-- Integrated terminal support
-- Offline functionality
-- Native performance
+### 1. Desktop Application (Primary)
+- Standalone executable for Windows, macOS, and Linux.
+- Local file system access, integrated terminal, and offline functionality.
+- Optimized for native performance.
 
-## 2. Web Application (Secondary)
-- Browser-based access
-- Cloud storage integration
-- Real-time collaboration
-- Cross-platform compatibility
-# PyDitor v2.0
-
-**PyDitor** is a Python IDE Backend API designed to support code execution, file management, and real-time collaboration. This README outlines its current features, future plans, and licensing details.
+### 2. Web Application (Secondary)
+- Browser-based access with cross-platform compatibility.
+- Cloud storage integration and real-time collaboration features.
 
 ## Component Diagram
 
