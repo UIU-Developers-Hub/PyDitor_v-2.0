@@ -23,33 +23,6 @@ PyDitor is designed to support code execution, file management, and real-time co
 
 ---
 
-## 📊 Component Diagram
-
-Below is a high-level component diagram illustrating the architecture of PyDitor.
-
-```mermaid
-graph TD
-    A[PyDitor API] -->|HTTP| B[Code Execution Service]
-    A -->|HTTP| C[File Management Service]
-    A -->|WebSocket| D[Real-Time Collaboration Service]
-    B --> E[Execution Engine]
-    C --> F[File Storage]
-    D --> G[Collaboration Database]
-
-    subgraph Backend
-        B
-        C
-        D
-    end
-
-    subgraph Services
-        E
-        F
-        G
-    end
-
----
-
 ## 🌐 Supported Languages
 
 ### Current Support
