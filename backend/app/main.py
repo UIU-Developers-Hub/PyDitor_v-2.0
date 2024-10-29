@@ -5,6 +5,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
+from app.routers import auth  # Import auth router
 
 # Configure logging
 logging.basicConfig(
@@ -13,6 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Python IDE Backend API",
@@ -27,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers - note there's no prefix here since the router has its own prefix
+app.include_router(auth.router)
 
 @app.get("/")
 async def root():
@@ -44,7 +49,6 @@ async def health_check():
 async def test_db(db: AsyncSession = Depends(get_db)):
     """Test database connection"""
     try:
-        # Test query
         result = await db.execute("SELECT 1")
         await db.commit()
         return {"status": "Database connection successful"}

@@ -15,6 +15,11 @@ class Settings(BaseModel):
     DB_PORT: str = os.getenv("DB_PORT", "5432")
     DB_NAME: str = os.getenv("DB_NAME", "pyditor")
 
+    # JWT settings # Security settings
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
     @property
     def SYNC_DATABASE_URL(self) -> str:
         """Synchronous database URL"""
@@ -31,3 +36,4 @@ class Settings(BaseModel):
         return self.ASYNC_DATABASE_URL
 
 settings = Settings()
+

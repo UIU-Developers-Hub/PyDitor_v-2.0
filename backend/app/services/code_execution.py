@@ -1,12 +1,15 @@
-# app/services/code_execution.py
 import asyncio
 import tempfile
 import os
-import resource
 import time
+import platform
 from typing import Dict, Any
 import logging
 from ..models.code import CodeExecutionRequest, CodeExecutionResponse
+
+# Conditional import of `resource` for Unix-based systems
+if platform.system() != "Windows":
+    import resource
 
 logger = logging.getLogger(__name__)
 
@@ -19,17 +22,21 @@ async def execute_code(request: CodeExecutionRequest) -> CodeExecutionResponse:
             f.write(request.code)
             temp_file = f.name
         
-        # Set resource limits
-        def limit_resources():
-            resource.setrlimit(resource.RLIMIT_AS, 
-                             (request.memory_limit * 1024 * 1024, -1))
-        
+        # Set resource limits on Unix-based systems only
+        if platform.system() != "Windows":
+            def limit_resources():
+                resource.setrlimit(resource.RLIMIT_AS, 
+                                 (request.memory_limit * 1024 * 1024, -1))
+            preexec_fn = limit_resources
+        else:
+            preexec_fn = None  # No resource limiting on Windows
+
         # Execute code
         process = await asyncio.create_subprocess_exec(
             'python', temp_file,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            preexec_fn=limit_resources
+            preexec_fn=preexec_fn
         )
         
         try:
@@ -43,12 +50,18 @@ async def execute_code(request: CodeExecutionRequest) -> CodeExecutionResponse:
             
         execution_time = time.time() - start_time
         
+        # Get memory usage if available, otherwise set to 0 on Windows
+        memory_usage = (
+            resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024
+            if platform.system() != "Windows" else 0
+        )
+        
         return CodeExecutionResponse(
             stdout=stdout.decode() if stdout else "",
             stderr=stderr.decode() if stderr else "",
             execution_time=execution_time,
             status="success" if process.returncode == 0 else "error",
-            memory_usage=resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 1024
+            memory_usage=memory_usage
         )
         
     except Exception as e:

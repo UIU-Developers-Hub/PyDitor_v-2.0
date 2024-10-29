@@ -1,12 +1,11 @@
- app/services/file_management.py
+# app/services/file_management.py
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List, Optional
+from typing import List
 from pathlib import Path
 import aiofiles
 import logging
 from ..models.file import File, FileRequest, FileResponse
-from ..core.security import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -17,21 +16,25 @@ class FileManager:
 
     async def save_file(self, db: AsyncSession, user_id: int, request: FileRequest) -> FileResponse:
         try:
-            # Save to filesystem
+            # Define file path
             file_path = self.workspace_root / request.path
             file_path.parent.mkdir(parents=True, exist_ok=True)
             
+            # Check if file exists to avoid overwriting
+            if file_path.exists():
+                raise FileExistsError(f"File {file_path} already exists.")
+
+            # Save content to filesystem
             async with aiofiles.open(file_path, mode='w') as f:
                 await f.write(request.content or '')
-                
-            # Save to database
+            
+            # Save file metadata to the database
             db_file = File(
                 name=file_path.name,
                 path=str(request.path),
                 content=request.content,
                 user_id=user_id
             )
-            
             db.add(db_file)
             await db.commit()
             await db.refresh(db_file)
@@ -46,6 +49,9 @@ class FileManager:
                 owner_id=user_id
             )
             
+        except FileExistsError as e:
+            logger.warning(e)
+            raise
         except Exception as e:
             await db.rollback()
             logger.error(f"Failed to save file: {e}")

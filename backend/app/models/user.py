@@ -6,6 +6,7 @@ from sqlalchemy.sql import func
 from app.core.database import Base
 from pydantic import BaseModel, EmailStr
 
+# SQLAlchemy User Model
 class User(Base):
     __tablename__ = "users"
 
@@ -19,17 +20,20 @@ class User(Base):
     
     files = relationship("File", back_populates="owner")
 
+# Pydantic Base Model for Users
 class UserBase(BaseModel):
     email: EmailStr
     username: str
 
+# Pydantic Model for Creating Users
 class UserCreate(UserBase):
     password: str
 
+# Pydantic Model for User Responses
 class UserResponse(UserBase):
     id: int
     is_active: bool
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        from_attributes = True  # Updated for Pydantic v2 compatibility
