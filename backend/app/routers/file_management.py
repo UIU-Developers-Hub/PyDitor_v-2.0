@@ -1,49 +1,40 @@
 # app/routers/file_management.py
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, validator
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List
+from ..core.database import get_db
+from ..core.security import get_current_user
+from ..models.file import FileRequest, FileResponse, FileTreeResponse
+from ..models.user import User
+from ..services.file_management import FileManager
 import logging
 
+router = APIRouter(prefix="/files", tags=["file-management"])
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+file_manager = FileManager()
 
-class FileRequest(BaseModel):
-    path: str
-    content: str
-
-    @validator('path')
-    def path_must_not_be_empty(cls, v):
-        if not v.strip():
-            raise ValueError('File path cannot be empty')
-        return v
-
-@router.post("/files/save")
-async def save_file_endpoint(request: Request, file_request: FileRequest):
-    """
-    Save file content to disk.
-    """
+@router.post("/save", response_model=FileResponse)
+async def save_file(
+    request: FileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Save file with user authentication"""
     try:
-        logger.info(f"Processing file save request from {request.client.host}")
-        from app.services.file_management import save_file
-        
-        result = await save_file(
-            file_request.path,
-            file_request.content
-        )
-        
-        if result["status"] == "error":
-            logger.error(f"File save failed: {result['message']}")
-            raise HTTPException(
-                status_code=422,
-                detail=result["message"]
-            )
-            
-        logger.info(f"File saved successfully at {result['path']}")
-        return result
-        
+        return await file_manager.save_file(db, current_user.id, request)
     except Exception as e:
-        logger.error(f"File save operation failed: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        logger.error(f"Failed to save file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/my-files", response_model=List[FileResponse])
+async def get_my_files(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all files for the current user"""
+    try:
+        return await file_manager.get_user_files(db, current_user.id)
+    except Exception as e:
+        logger.error(f"Failed to get user files: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
