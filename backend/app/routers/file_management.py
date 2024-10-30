@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from ..core.database import get_db
 from ..core.security import get_current_user
-from ..models.file import FileRequest, FileResponse, FileTreeResponse
+from ..models.file import File  # Import only File from file.py
+from ..models.file_management import FileRequest, FileResponse  # Correct import location
 from ..models.user import User
 from ..services.file_management import FileManager
 import logging

@@ -1,15 +1,15 @@
-# app/main.py
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.routers import auth  # Import auth router
+from app.routers import files  # Import files router
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Set to DEBUG for more detailed output
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -30,8 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers - note there's no prefix here since the router has its own prefix
+# Include routers
 app.include_router(auth.router)
+app.include_router(files.router)
 
 @app.get("/")
 async def root():
@@ -47,13 +48,14 @@ async def health_check():
 
 @app.get("/db-test")
 async def test_db(db: AsyncSession = Depends(get_db)):
-    """Test database connection"""
+    """Test database connection with detailed error logging."""
     try:
         result = await db.execute("SELECT 1")
         await db.commit()
+        logger.info("Database connection successful")
         return {"status": "Database connection successful"}
     except Exception as e:
-        logger.error(f"Database connection failed: {str(e)}")
+        logger.error("Database connection failed", exc_info=True)  # Detailed exception info
         return {"status": "Database connection failed", "error": str(e)}
 
 @app.on_event("startup")

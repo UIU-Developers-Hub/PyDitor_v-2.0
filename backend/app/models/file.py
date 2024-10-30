@@ -1,13 +1,12 @@
-
-# app/models/file.py
 from datetime import datetime
-from typing import Optional, List
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from typing import Optional, List
 
+# SQLAlchemy Model
 class File(Base):
     __tablename__ = "files"
 
@@ -15,28 +14,52 @@ class File(Base):
     name = Column(String, index=True)
     path = Column(String, nullable=False)
     content = Column(Text)
+    file_type = Column(String, default="file")  # file or directory
+    is_directory = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
+    # Relationship
     owner = relationship("User", back_populates="files")
 
-class FileRequest(BaseModel):
-    path: str = Field(..., description="File path")
-    content: Optional[str] = Field(None, description="File content")
+# Pydantic Models
+class FileCreate(BaseModel):
+    name: str
+    path: str
+    content: Optional[str] = None
+    is_directory: bool = False
+
+class FileUpdate(BaseModel):
+    content: Optional[str] = None
+    name: Optional[str] = None
+
+class FileRequest(BaseModel):  # Newly added model for file requests
+    name: str
+    path: str
+    content: Optional[str] = None
+    is_directory: bool = False
 
 class FileResponse(BaseModel):
     id: int
+    name: str
     path: str
     content: Optional[str]
-    size: int
-    modified: datetime
+    file_type: str
     is_directory: bool
-    owner_id: int
+    created_at: datetime
+    updated_at: Optional[datetime]
+    user_id: int
 
     class Config:
         from_attributes = True
 
-class FileTreeResponse(BaseModel):
-    files: List[FileResponse]
-    directories: List[str]
+class FileTreeItem(BaseModel):
+    id: int
+    name: str
+    path: str
+    is_directory: bool
+    children: Optional[List['FileTreeItem']] = None
+
+# Update forward references
+FileTreeItem.model_rebuild()
