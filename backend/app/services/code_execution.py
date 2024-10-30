@@ -1,9 +1,10 @@
+# backend/app/services/code_execution.py
 import asyncio
 import tempfile
 import os
 import time
 import platform
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 from ..models.code import CodeExecutionRequest, CodeExecutionResponse
 
@@ -14,24 +15,24 @@ if platform.system() != "Windows":
 logger = logging.getLogger(__name__)
 
 async def execute_code(request: CodeExecutionRequest) -> CodeExecutionResponse:
-    start_time = time.time()
+    start_time = time.time()  # Start time for execution duration tracking
     
+    temp_file = None
     try:
-        # Create temporary file
+        # Create temporary file to save the code to execute
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
             f.write(request.code)
             temp_file = f.name
         
         # Set resource limits on Unix-based systems only
+        preexec_fn = None
         if platform.system() != "Windows":
             def limit_resources():
-                resource.setrlimit(resource.RLIMIT_AS, 
-                                 (request.memory_limit * 1024 * 1024, -1))
+                # Set memory limit in bytes
+                resource.setrlimit(resource.RLIMIT_AS, (request.memory_limit * 1024 * 1024, -1))
             preexec_fn = limit_resources
-        else:
-            preexec_fn = None  # No resource limiting on Windows
 
-        # Execute code
+        # Execute code in a subprocess with the defined memory and timeout limits
         process = await asyncio.create_subprocess_exec(
             'python', temp_file,
             stdout=asyncio.subprocess.PIPE,
@@ -40,6 +41,7 @@ async def execute_code(request: CodeExecutionRequest) -> CodeExecutionResponse:
         )
         
         try:
+            # Wait for the process to complete within the specified timeout
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(),
                 timeout=request.timeout
@@ -47,7 +49,8 @@ async def execute_code(request: CodeExecutionRequest) -> CodeExecutionResponse:
         except asyncio.TimeoutError:
             process.kill()
             raise TimeoutError("Code execution timed out")
-            
+        
+        # Measure execution time
         execution_time = time.time() - start_time
         
         # Get memory usage if available, otherwise set to 0 on Windows
@@ -64,6 +67,13 @@ async def execute_code(request: CodeExecutionRequest) -> CodeExecutionResponse:
             memory_usage=memory_usage
         )
         
+    except TimeoutError:
+        logger.error("Code execution timed out")
+        return CodeExecutionResponse(
+            stderr="Execution timed out.",
+            status="timeout"
+        )
+        
     except Exception as e:
         logger.error(f"Code execution failed: {str(e)}")
         return CodeExecutionResponse(
@@ -71,5 +81,6 @@ async def execute_code(request: CodeExecutionRequest) -> CodeExecutionResponse:
             status="error"
         )
     finally:
-        if 'temp_file' in locals():
+        # Clean up the temporary file if it was created
+        if temp_file and os.path.exists(temp_file):
             os.unlink(temp_file)

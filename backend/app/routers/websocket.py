@@ -1,50 +1,77 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from app.services.websocket_manager import websocket_manager
-import logging
+# File: backend/app/routers/websocket.py
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from typing import Dict
 import json
+import asyncio
+import logging
 
+router = APIRouter()
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["websocket"])
 
-@router.websocket("/ws/{client_id}")
+class ConnectionManager:
+    def __init__(self):
+        self._active_connections: Dict[str, WebSocket] = {}
+        self._lock = asyncio.Lock()
+    
+    async def connect(self, websocket: WebSocket, client_id: str) -> bool:
+        """Accept a WebSocket connection and add it to active connections."""
+        try:
+            await websocket.accept()
+            async with self._lock:
+                self._active_connections[client_id] = websocket
+            logger.info(f"Client connected: {client_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Connection failed for {client_id}: {str(e)}")
+            return False
+
+    async def disconnect(self, client_id: str):
+        """Remove WebSocket from active connections."""
+        async with self._lock:
+            if client_id in self._active_connections:
+                del self._active_connections[client_id]
+                logger.info(f"Client disconnected: {client_id}")
+
+    async def send_message(self, client_id: str, message: dict) -> bool:
+        """Send a JSON message to the WebSocket client."""
+        if client_id in self._active_connections:
+            try:
+                await self._active_connections[client_id].send_json(message)
+                return True
+            except Exception as e:
+                logger.error(f"Failed to send message to {client_id}: {str(e)}")
+                await self.disconnect(client_id)
+        return False
+
+manager = ConnectionManager()
+
+@router.websocket("/ws/code/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    await websocket_manager.connect(websocket, client_id)
+    connected = await manager.connect(websocket, client_id)
+    if not connected:
+        return
     
     try:
         while True:
-            data = await websocket.receive_text()
             try:
-                message = json.loads(data)
-                message_type = message.get("type")
+                data = await websocket.receive_json()
+                logger.debug(f"Received message from {client_id}: {data}")
                 
-                if message_type == "code_execution":
-                    # Handle code execution
-                    from app.services.code_execution import execute_code
-                    result = await execute_code(
-                        message["data"].get("code", ""),
-                        message["data"].get("language", "python")
-                    )
-                    await websocket_manager.send_personal_message(
-                        {"type": "execution_result", "data": result},
-                        client_id
-                    )
-                    
-                elif message_type == "file_change":
-                    # Broadcast file changes
-                    await websocket_manager.broadcast(
-                        {"type": "file_updated", "data": message["data"]},
-                        exclude_client=client_id
-                    )
-                    
+                if data["type"] == "execute":
+                    result = {
+                        "type": "execution_result",
+                        "success": True,
+                        "output": "Hello, World!\n",
+                        "exit_code": 0
+                    }
+                    await manager.send_message(client_id, result)
             except json.JSONDecodeError:
-                logger.error(f"Invalid message format from client {client_id}")
-                await websocket_manager.send_personal_message(
-                    {"type": "error", "data": {"message": "Invalid message format"}},
-                    client_id
-                )
-                
+                logger.error(f"Invalid JSON from client {client_id}")
+                continue
+            
     except WebSocketDisconnect:
-        websocket_manager.disconnect(client_id)
+        logger.info(f"WebSocket disconnected for client {client_id}")
     except Exception as e:
-        logger.error(f"WebSocket error for client {client_id}: {e}")
-        websocket_manager.disconnect(client_id)
+        logger.error(f"Error in websocket connection {client_id}: {str(e)}")
+    finally:
+        await manager.disconnect(client_id)

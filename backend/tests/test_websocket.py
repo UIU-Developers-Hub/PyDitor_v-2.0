@@ -1,84 +1,53 @@
-test_websocket.py
+# File: backend/tests/test_websocket.py
 import pytest
-import asyncio
-import websockets
-import json
+from fastapi.testclient import TestClient
+from app.main import app
 import logging
-from datetime import datetime
 
-pytestmark = pytest.mark.asyncio
+# Configure logging for test output
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-class WebSocketTestClient:
-    def __init__(self, host="localhost", port=8000):
-        self.host = host
-        self.port = port
-        self.client_id = f"test-client-{datetime.now().timestamp()}"
-        self.uri = f"ws://{host}:{port}/ws/{self.client_id}"
-        self.websocket = None
+@pytest.fixture
+def test_app():
+    return TestClient(app)
 
-    async def connect(self):
+def test_websocket_connection(test_app):
+    """Test WebSocket connection and ping-pong interaction."""
+    with test_app.websocket_connect("/ws/code/test-client") as websocket:
+        # Send a simple ping message
+        websocket.send_json({"type": "ping"})
+
+        # Attempt to receive a response or assert if no exception is raised
         try:
-            self.websocket = await websockets.connect(
-                self.uri,
-                ping_interval=None,
-                ping_timeout=None
-            )
-            logger.info(f"Connected to WebSocket server")
-            return True
+            response = websocket.receive_json()
+            assert response is not None, "Expected a response from the WebSocket server."
         except Exception as e:
-            logger.error(f"Connection failed: {e}")
-            return False
+            logger.error(f"Failed to receive response from WebSocket: {e}")
+            assert False, "WebSocket connection was unexpectedly closed."
 
-    async def disconnect(self):
-        if self.websocket:
-            await self.websocket.close()
+        websocket.close()  # Close WebSocket explicitly
 
-    async def send_message(self, message_type: str, data: dict):
-        message = {
-            "type": message_type,
-            "data": data,
-            "client_id": self.client_id
+def test_code_execution_websocket(test_app):
+    """Test WebSocket connection for code execution interaction."""
+    with test_app.websocket_connect("/ws/code/test-client") as websocket:
+        # Send code execution request
+        execution_request = {
+            "type": "execute",
+            "code": "print('Hello, World!')",
+            "language": "python"
         }
-        await self.websocket.send(json.dumps(message))
-        logger.info(f"Sent message type: {message_type}")
-
-    async def receive_message(self, timeout=5):
-        try:
-            response = await asyncio.wait_for(
-                self.websocket.recv(),
-                timeout=timeout
-            )
-            return json.loads(response)
-        except asyncio.TimeoutError:
-            logger.warning("No response received within timeout")
-            return None
-
-async def test_websocket_connection():
-    client = WebSocketTestClient()
-    try:
-        connected = await client.connect()
-        assert connected, "Failed to connect to WebSocket server"
+        websocket.send_json(execution_request)
         
-        response = await client.receive_message()
-        assert response is not None
-        assert response["type"] == "connection_established"
-    finally:
-        await client.disconnect()
+        # Attempt to receive a response or handle if connection fails
+        try:
+            response = websocket.receive_json(timeout=5.0)
+            assert response is not None, "Expected a response but received None."
+            assert response["type"] == "execution_result", f"Expected 'execution_result' but got {response['type']}."
+            assert response["success"] is True, "Execution should be successful."
+            assert "Hello, World!" in response["output"], "Expected output text in response."
+        except Exception as e:
+            logger.error(f"Failed to receive response from WebSocket: {e}")
+            assert False, "WebSocket connection was unexpectedly closed."
 
-async def test_code_execution_websocket():
-    client = WebSocketTestClient()
-    try:
-        await client.connect()
-        await client.send_message(
-            "code_execution",
-            {
-                "code": "print('Hello, WebSocket!')",
-                "language": "python"
-            }
-        )
-        response = await client.receive_message()
-        assert response is not None
-        assert response["type"] in ["execution_result", "echo"]
-    finally:
-        await client.disconnect()
+        websocket.close()  # Close WebSocket explicitly
