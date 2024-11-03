@@ -1,3 +1,4 @@
+#backend\scripts\manage_db.py
 import asyncio
 import typer
 from sqlalchemy.ext.asyncio import create_async_engine

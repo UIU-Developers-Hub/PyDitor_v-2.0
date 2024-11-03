@@ -1,39 +1,40 @@
-# app/models/user.py
 from datetime import datetime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, select, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import func
+from app.database import Base
+from app.core.security import verify_password
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-from pydantic import BaseModel, EmailStr
 
-# SQLAlchemy User Model
-class User(Base):
-    __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    username = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    files = relationship("File", back_populates="owner")
+# File: backend/app/models/user.py
+from .base import UserModel
 
-# Pydantic Base Model for Users
-class UserBase(BaseModel):
-    email: EmailStr
-    username: str
+class User(UserModel):
+    """User class extending UserModel with additional methods"""
+    def verify_password(self, password: str) -> bool:
+        from app.core.security import verify_password
+        return verify_password(password, self.hashed_password)
 
-# Pydantic Model for Creating Users
-class UserCreate(UserBase):
-    password: str
+    @classmethod
+    async def authenticate(cls, db: AsyncSession, username: str, password: str) -> 'User':
+        """Authenticate user."""
+        query = select(cls).where(cls.username == username)
+        result = await db.execute(query)
+        user = result.scalar_one_or_none()
+        
+        if user and verify_password(password, user.hashed_password):
+            return user
+        return None
 
-# Pydantic Model for User Responses
-class UserResponse(UserBase):
-    id: int
-    is_active: bool
-    created_at: datetime
-
-    class Config:
-        from_attributes = True  # Updated for Pydantic v2 compatibility
+    @classmethod
+    def create(cls, username: str, email: str, hashed_password: str) -> 'User':
+        """Create a new user instance."""
+        return cls(
+            username=username,
+            email=email,
+            hashed_password=hashed_password,
+            is_active=True
+        )

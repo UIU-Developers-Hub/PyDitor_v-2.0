@@ -1,3 +1,4 @@
+#backend\app\services\file_watcher.py
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from app.services.websocket_manager import websocket_manager

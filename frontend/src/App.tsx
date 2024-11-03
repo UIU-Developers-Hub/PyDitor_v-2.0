@@ -1,26 +1,27 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+// File: src/App.tsx
+// Directory: src/
 
-function App() {
+import React from 'react';
+import { FileSystemProvider } from './context/FileSystemContext';
+import { ThemeProvider } from './context/theme/ThemeContext';
+import Sidebar from './components/Sidebar';
+import Editor from './components/Editor';
+
+const App: React.FC = () => {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ThemeProvider>
+      <FileSystemProvider>
+        <div className="flex h-screen overflow-hidden bg-white dark:bg-gray-900">
+          <div className="w-64 border-r border-gray-200 dark:border-gray-700">
+            <Sidebar />
+          </div>
+          <div className="flex-1">
+            <Editor />
+          </div>
+        </div>
+      </FileSystemProvider>
+    </ThemeProvider>
   );
-}
+};
 
 export default App;

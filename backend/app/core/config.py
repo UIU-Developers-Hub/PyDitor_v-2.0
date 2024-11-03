@@ -1,18 +1,16 @@
+# File: app/core/config.py
 from pydantic_settings import BaseSettings
-from dotenv import load_dotenv
 from typing import List, Optional
-
-# Load environment variables from .env file
-load_dotenv(encoding='utf-8')
+from pydantic import ConfigDict
 
 class Settings(BaseSettings):
+    # Project info
     PROJECT_NAME: str = "PyDitor v2"
     VERSION: str = "2.0.0"
     ENVIRONMENT: str = "development"
-    TESTING: bool = False
 
     # Server settings
-    HOST: str = "127.0.0.1"
+    HOST: str = "0.0.0.0"
     PORT: int = 8000
 
     # Database settings
@@ -29,24 +27,27 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # Additional configurations
+    # File settings
     MAX_FILE_SIZE: int = 10485760  # 10 MB
     ALLOWED_EXTENSIONS: List[str] = [".py", ".cpp", ".java", ".js", ".html", ".css"]
+
+    # Docker settings
     DOCKER_HOST: str = "unix:///var/run/docker.sock"
 
     @property
     def SYNC_DATABASE_URL(self) -> str:
-        db_name = "pyditor_test" if self.TESTING and self.TEST_DATABASE_URL else self.DB_NAME
-        return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{db_name}"
+        """Get synchronous database URL."""
+        return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
-        db_name = "pyditor_test" if self.TESTING and self.TEST_DATABASE_URL else self.DB_NAME
-        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{db_name}"
+        """Get asynchronous database URL."""
+        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
-    class ConfigDict:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = ConfigDict(
+        case_sensitive=True,
+        env_file=".env",
+        extra="allow"  # Allow extra fields from environment variables
+    )
 
-# Instantiate settings
 settings = Settings()

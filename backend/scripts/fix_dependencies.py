@@ -1,3 +1,4 @@
+#backend\scripts\fix_dependencies.py
 import subprocess
 import sys
 import logging

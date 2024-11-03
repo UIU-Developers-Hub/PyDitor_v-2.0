@@ -1,53 +1,42 @@
 # File: backend/tests/test_integration.py
-
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app  # Ensure app is correctly imported from main module
+from httpx import AsyncClient
 
-@pytest.fixture
-def test_app():
-    return TestClient(app)
-
-def test_file_operations_integration(test_app):
-    # Test file creation
-    file_data = {
-        "name": "test.py",
-        "content": "print('hello')",
-        "path": "/test"
-    }
-    response = test_app.post("/api/files", json=file_data)
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    file_response = response.json()
-    file_id = file_response["id"]
-    assert file_response["name"] == file_data["name"]
-
-    # Test retrieving the file by its ID
-    response = test_app.get(f"/api/files/{file_id}")
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    retrieved_file = response.json()
-    assert retrieved_file["name"] == file_data["name"]
-    assert retrieved_file["content"] == file_data["content"]
-
-    # Test file validation with invalid file type
-    invalid_file = {
-        "name": "test.invalid",
-        "content": "invalid content",
-        "path": "/test"
-    }
-    response = test_app.post("/api/files", json=invalid_file)
-    assert response.status_code == 400, f"Expected 400, got {response.status_code}"
-
-    # Test file search for the existing file
-    response = test_app.get("/api/files/search", params={"query": "test"})
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    results = response.json()
-    assert len(results) > 0
-    assert any(r["name"] == "test.py" for r in results)
-
-    # Test deletion of the created file
-    response = test_app.delete(f"/api/files/{file_id}")
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-
-    # Confirm the file no longer exists
-    response = test_app.get(f"/api/files/{file_id}")
-    assert response.status_code == 404, f"Expected 404, got {response.status_code}"
+@pytest.mark.asyncio
+async def test_complete_flow(test_client: AsyncClient):
+    """Test complete user flow."""
+    # 1. Register user
+    register_response = await test_client.post(
+        "/auth/register",
+        json={
+            "username": "flowtest",
+            "email": "flow@test.com",
+            "password": "testpass123"
+        }
+    )
+    assert register_response.status_code == 200
+    
+    # 2. Login
+    login_response = await test_client.post(
+        "/auth/login",
+        data={
+            "username": "flowtest",
+            "password": "testpass123"
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"}
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    
+    # 3. Create and execute code
+    headers = {"Authorization": f"Bearer {token}"}
+    code_response = await test_client.post(
+        "/execution/run",
+        json={
+            "code": "print('Integration test')",
+            "language": "python"
+        },
+        headers=headers
+    )
+    assert code_response.status_code == 200
+    assert "Integration test" in code_response.json()["output"]

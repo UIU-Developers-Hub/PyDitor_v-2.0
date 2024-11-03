@@ -1,0 +1,33 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.editor-wrapper {
+  height: 100%;
+  width: 100%;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.terminal-wrapper {
+  height: 16rem;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  font-family: monospace;
+  padding: 0.5rem;
+}

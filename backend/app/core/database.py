@@ -1,53 +1,52 @@
+# File: backend/app/core/database.py
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from .config import settings
-import logging
 from typing import AsyncGenerator
+import logging
+from app.core.config import settings
 
-# Configure logging for database
+# Configure logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
-# Correctly reference settings attributes using uppercase names
-DATABASE_URL = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+# Create declarative base
+Base = declarative_base()
 
-# Create async engine with configured settings
+# Create engine
 engine = create_async_engine(
-    DATABASE_URL,
-    echo=True,                # SQL logging for debugging
-    future=True,              # Use SQLAlchemy 2.0 style
-    pool_pre_ping=True,       # For pool health check
-    pool_size=5,              # Initial connection pool size
-    max_overflow=10,          # Extra connections if pool is full
-    pool_timeout=30           # Timeout for pool connection acquisition
+    settings.ASYNC_DATABASE_URL,
+    echo=True,
+    future=True,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10
 )
 
-# Create async session factory
-async_session = sessionmaker(
+# Create async session maker
+async_session_maker = sessionmaker(
     engine,
     class_=AsyncSession,
-    expire_on_commit=False,    # Keep objects in session after commit
-    autocommit=False,
+    expire_on_commit=False,
     autoflush=False
 )
 
-# Define base class for declarative models
-Base = declarative_base()
-
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Dependency to provide async database session.
-    Use in endpoints with dependency injection.
-    """
-    async with async_session() as session:
-        yield session
+    """Dependency to provide async database session."""
+    async with async_session_maker() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
 
-async def init_db():
-    """
-    Initialize the database by creating all tables if they don't exist.
-    Logs the table creation process.
-    """
-    async with engine.begin() as conn:
-        logger.info("Creating all tables...")
-        await conn.run_sync(Base.metadata.create_all)
-        logger.info("All tables created successfully.")
+async def init_db() -> None:
+    """Initialize database by creating all tables."""
+    try:
+        async with engine.begin() as conn:
+            logger.info("Creating database tables...")
+            await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database tables created successfully.")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {str(e)}")
+        raise
+
+# Export all necessary components
+__all__ = ['Base', 'get_db', 'init_db', 'engine', 'async_session_maker']
