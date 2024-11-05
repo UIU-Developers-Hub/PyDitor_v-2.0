@@ -1,54 +1,36 @@
-// File: src/components/Toolbar/Toolbar.tsx
+// src/components/Toolbar/index.tsx
 import React from 'react';
-import { Play, Save, FileText, Settings } from 'lucide-react';
+import { Menu, Settings, Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
 
 interface ToolbarProps {
-  onRun: () => void;
-  onSave: () => void;
-  onNewFile: () => void;
+  className?: string;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ onRun, onSave, onNewFile }) => {
-  return (
-    <div className="h-12 bg-gray-800 border-b border-gray-700 flex items-center px-4 justify-between">
-      <div className="flex items-center space-x-2">
-        <span className="text-white font-medium">PyDitor</span>
-      </div>
-      
-      <div className="flex items-center space-x-4">
-        <button 
-          onClick={onNewFile}
-          className="p-2 hover:bg-gray-700 rounded-md text-gray-300 hover:text-white"
-          title="New File"
-        >
-          <FileText size={20} />
-        </button>
-        
-        <button 
-          onClick={onSave}
-          className="p-2 hover:bg-gray-700 rounded-md text-gray-300 hover:text-white"
-          title="Save"
-        >
-          <Save size={20} />
-        </button>
-        
-        <button 
-          onClick={onRun}
-          className="px-4 py-1.5 bg-green-600 hover:bg-green-700 rounded-md flex items-center space-x-2 text-white"
-        >
-          <Play size={16} />
-          <span>Run</span>
-        </button>
+export const Toolbar: React.FC<ToolbarProps> = ({ className }) => {
+  const { theme, toggleTheme } = useTheme();
 
-        <button 
-          className="p-2 hover:bg-gray-700 rounded-md text-gray-300 hover:text-white"
-          title="Settings"
-        >
-          <Settings size={20} />
-        </button>
-      </div>
+  return (
+    <div className={`flex items-center px-2 h-12 border-b border-gray-700 ${className || ''}`}>
+      <button className="p-2 hover:bg-gray-700 rounded-lg">
+        <Menu className="w-5 h-5 text-gray-400" />
+      </button>
+      <div className="flex-1" />
+      <button
+        onClick={toggleTheme}
+        className="p-2 hover:bg-gray-700 rounded-lg"
+        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+      >
+        {theme === 'dark' ? (
+          <Sun className="w-5 h-5 text-gray-400" />
+        ) : (
+          <Moon className="w-5 h-5 text-gray-400" />
+        )}
+      </button>
+      <button className="p-2 hover:bg-gray-700 rounded-lg">
+        <Settings className="w-5 h-5 text-gray-400" />
+      </button>
     </div>
   );
 };
-
 export default Toolbar;

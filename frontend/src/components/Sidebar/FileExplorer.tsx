@@ -1,46 +1,41 @@
-// File: src/components/Sidebar/FileExplorer.tsx
-// Directory: src/components/Sidebar/
-
+// src/components/FileExplorer/FileExplorer.tsx
 import React from 'react';
-import { Plus } from 'lucide-react';
-import { useFileSystem } from '../../hooks/useEditor';
-import FileTree from './FileTree';
 
-const FileExplorer: React.FC = () => {
-  const { createFile, createFolder } = useFileSystem();
+interface FileExplorerProps {
+  files: File[];
+  onAddFile: (name: string, type: 'file' | 'directory') => void;
+  onDeleteFile: (name: string) => void;
+  onRenameFile: (oldName: string, newName: string) => void;
+}
 
-  const handleCreateFile = () => {
-    const name = prompt('Enter file name:');
-    if (name) createFile('/', name);
-  };
-
-  const handleCreateFolder = () => {
-    const name = prompt('Enter folder name:');
-    if (name) createFolder('/', name);
-  };
-
+export const FileExplorer: React.FC<FileExplorerProps> = ({
+  files,
+  onAddFile,
+  onDeleteFile,
+  onRenameFile,
+}) => {
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-gray-800 dark:bg-gray-900">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
-        <h2 className="text-sm font-semibold text-white">Explorer</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={handleCreateFile}
-            className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white"
-            title="New File"
-          >
-            <Plus size={16} />
-          </button>
-          <button
-            onClick={handleCreateFolder}
-            className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white"
-            title="New Folder"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      </div>
-      <FileTree />
+    <div>
+      <button aria-label="Add New File" onClick={() => onAddFile('NewFile', 'file')}>
+        New File
+      </button>
+      <button aria-label="Add New Folder" onClick={() => onAddFile('NewFolder', 'directory')}>
+        New Folder
+      </button>
+      <button aria-label="Delete File" onClick={() => onDeleteFile('FileName')}>
+        Delete
+      </button>
+      <button aria-label="Rename File" onClick={() => onRenameFile('OldName', 'NewName')}>
+        Rename
+      </button>
+
+      <ul>
+        {files.map(file => (
+          <li key={file.name}>
+            {file.type === 'file' ? '📄' : '📁'} {file.name}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };

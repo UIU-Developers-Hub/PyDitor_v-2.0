@@ -1,83 +1,50 @@
-// File: src/hooks/useEditor.ts
-// Directory: src/hooks/
+// src/hooks/useEditor.ts
+import { useCallback, useRef } from 'react';
+import type { editor } from 'monaco-editor';
 
-import { useContext } from 'react';
-import { FileSystemContext } from '../context/FileSystemContext';
-import { fileService } from '../services/files';
-
-interface UseFileSystemReturn {
-  files: Array<{
-    id: string;
-    name: string;
-    path: string;
-    type: 'file' | 'folder';
-    children?: Array<any>;
-    isExpanded?: boolean;
+interface EditorHook {
+  editorRef: React.MutableRefObject<{
+    editor: editor.IStandaloneCodeEditor | null;
   }>;
-  selectedFile: string | null;
-  loading: boolean;
-  error: string | null;
-  selectFile: (path: string) => void;
-  toggleFolder: (path: string) => void;
-  createFile: (parentPath: string, name: string) => Promise<void>;
-  createFolder: (parentPath: string, name: string) => Promise<void>;
+  saveFile: () => void;
+  runCode: () => void;
+  formatCode: () => void;
+  handleEditorDidMount: (editor: editor.IStandaloneCodeEditor) => void;
 }
 
-export const useFileSystem = (): UseFileSystemReturn => {
-  const context = useContext(FileSystemContext);
+export const useEditor = (): EditorHook => {
+  const editorRef = useRef<{ editor: editor.IStandaloneCodeEditor | null }>({
+    editor: null
+  });
 
-  if (!context) {
-    throw new Error('useFileSystem must be used within a FileSystemProvider');
-  }
+  const handleEditorDidMount = useCallback((editor: editor.IStandaloneCodeEditor) => {
+    editorRef.current.editor = editor;
+  }, []);
 
-  const { state, dispatch } = context;
+  const saveFile = useCallback(() => {
+    if (!editorRef.current.editor) return;
+    const content = editorRef.current.editor.getValue();
+    // Add save logic here
+    console.log('Saving...', content);
+  }, []);
 
-  const selectFile = (path: string) => {
-    dispatch({ type: 'SELECT_FILE', payload: path });
-  };
+  const runCode = useCallback(() => {
+    if (!editorRef.current.editor) return;
+    const content = editorRef.current.editor.getValue();
+    // Add run logic here
+    console.log('Running...', content);
+  }, []);
 
-  const toggleFolder = (path: string) => {
-    dispatch({ type: 'TOGGLE_FOLDER', payload: path });
-  };
-
-  const createFile = async (parentPath: string, name: string) => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      await fileService.createFile(parentPath, name);
-      const files = await fileService.getFiles();
-      dispatch({ type: 'SET_FILES', payload: files });
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to create file' });
-      throw error;
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  };
-
-  const createFolder = async (parentPath: string, name: string) => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      await fileService.createFolder(parentPath, name);
-      const files = await fileService.getFiles();
-      dispatch({ type: 'SET_FILES', payload: files });
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to create folder' });
-      throw error;
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  };
+  const formatCode = useCallback(() => {
+    if (!editorRef.current.editor) return;
+    editorRef.current.editor.getAction('editor.action.formatDocument')?.run();
+  }, []);
 
   return {
-    files: state.files,
-    selectedFile: state.selectedFile,
-    loading: state.loading,
-    error: state.error,
-    selectFile,
-    toggleFolder,
-    createFile,
-    createFolder,
+    editorRef,
+    saveFile,
+    runCode,
+    formatCode,
+    handleEditorDidMount
   };
 };
-
-export type FileSystemHook = ReturnType<typeof useFileSystem>;

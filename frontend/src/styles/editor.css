@@ -1,0 +1,20 @@
+/* src/styles/editor.css */
+.monaco-editor .line-numbers {
+    color: #858585;
+  }
+  
+  .monaco-editor .current-line {
+    border: none !important;
+    background-color: rgba(41, 41, 41, 0.6) !important;
+  }
+  
+  .monaco-editor .cursor {
+    background-color: #fff;
+    border-color: #fff;
+    color: #fff;
+  }
+  
+  .monaco-editor .bracket-match {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }

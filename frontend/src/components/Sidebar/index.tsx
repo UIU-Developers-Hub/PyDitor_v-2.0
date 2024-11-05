@@ -1,16 +1,30 @@
-// File: src/components/Sidebar/index.tsx
-// Directory: src/components/Sidebar/
+// src/components/Sidebar/index.tsx
+import { FC, ReactNode } from 'react'; // Removed React import
+import { SidebarContainer, SidebarItem, IconContainer } from './styles';
+import { FileText, Folder } from 'lucide-react';
 
-import React from 'react';
-import SearchPanel from './SearchPanel';
-import FileExplorer from './FileExplorer';
+interface SidebarProps {
+  className?: string;
+  children?: ReactNode;
+}
 
-const Sidebar: React.FC = () => {
+const Sidebar: FC<SidebarProps> = ({ className, children }) => {
   return (
-    <div className="flex flex-col h-full bg-gray-800 dark:bg-gray-900">
-      <SearchPanel />
-      <FileExplorer />
-    </div>
+    <SidebarContainer className={className}>
+      <SidebarItem>
+        <IconContainer>
+          <Folder size={16} />
+        </IconContainer>
+        src
+      </SidebarItem>
+      <SidebarItem>
+        <IconContainer>
+          <FileText size={16} />
+        </IconContainer>
+        README.md
+      </SidebarItem>
+      {children}
+    </SidebarContainer>
   );
 };
 

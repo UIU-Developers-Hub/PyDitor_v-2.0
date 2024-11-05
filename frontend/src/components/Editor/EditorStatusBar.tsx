@@ -1,42 +1,20 @@
-// File: src/components/Editor/EditorStatusBar.tsx
-// Directory: src/components/Editor/
-
+// src/components/Editor/EditorStatusBar.tsx
 import React from 'react';
-import { useFileSystem } from '../../hooks/useEditor';
+import styled from 'styled-components';
 
-const EditorStatusBar: React.FC = () => {
-  const { selectedFile } = useFileSystem();
+const StatusBarContainer = styled.div.attrs({
+  className: 'flex items-center px-2 h-6 text-sm'
+})`
+  background-color: ${props => props.theme.colors.background.statusBar}; // Using statusBar here
+  color: ${props => props.theme.colors.foreground.secondary};
+`;
 
-  const getFileInfo = () => {
-    if (!selectedFile) return null;
-    const parts = selectedFile.split('.');
-    const extension = parts[parts.length - 1];
-    return {
-      language: extension.toUpperCase(),
-      encoding: 'UTF-8',
-      lineEnding: 'LF',
-    };
-  };
-
-  const fileInfo = getFileInfo();
-
+export const EditorStatusBar: React.FC = () => {
   return (
-    <div className="h-6 flex items-center justify-between px-4 bg-gray-800 dark:bg-gray-900 text-xs text-gray-300 border-t border-gray-700">
-      <div className="flex items-center space-x-4">
-        {fileInfo && (
-          <>
-            <span>{fileInfo.language}</span>
-            <span>{fileInfo.encoding}</span>
-            <span>{fileInfo.lineEnding}</span>
-          </>
-        )}
-      </div>
-      <div className="flex items-center space-x-4">
-        <span>Ln 1, Col 1</span>
-        <span>Spaces: 2</span>
-      </div>
-    </div>
+    <StatusBarContainer>
+      <span>Line 1, Column 1</span>
+      <div className="flex-1" />
+      <span>UTF-8</span>
+    </StatusBarContainer>
   );
 };
-
-export default EditorStatusBar;
