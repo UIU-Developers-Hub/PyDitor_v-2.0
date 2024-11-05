@@ -1,3 +1,6 @@
+// src/styles/theme.ts
+import 'styled-components';
+
 const theme = {
   colors: {
     primary: '#3498db',

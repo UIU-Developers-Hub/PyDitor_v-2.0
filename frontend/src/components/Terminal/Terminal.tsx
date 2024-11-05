@@ -1,114 +1,216 @@
 // src/components/Terminal/Terminal.tsx
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef, useImperativeHandle, forwardRef, useCallback, useState } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { Terminal as TerminalIcon, X } from 'lucide-react';
+import { WebLinksAddon } from 'xterm-addon-web-links';
+import { AiOutlineClear, AiOutlineDown, AiOutlineSync, AiOutlinePlus, AiOutlineClose } from 'react-icons/ai';
+import {
+  TerminalContainer, TerminalHeader, TerminalTab, TerminalBody,
+  Toolbar, FilterInput, ToolbarButton, Resizer, TerminalsSidebar, SidebarTerminalItem
+} from './styles';
 import 'xterm/css/xterm.css';
 
-interface TerminalComponentProps {
-  onClose?: () => void;
+interface TerminalProps {
+  onData?: (data: string) => void;
+  commands?: { [command: string]: () => void };
 }
 
-const TerminalComponent: React.FC<TerminalComponentProps> = ({ onClose }) => {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<XTerm | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
+interface TerminalInstance {
+  id: number;
+  name: string;
+  xterm: XTerm;
+}
 
-  useEffect(() => {
+const Terminal = forwardRef(({ onData, commands = {} }: TerminalProps, ref) => {
+  const [terminals, setTerminals] = useState<TerminalInstance[]>([]);
+  const [activeTab, setActiveTab] = useState<'TERMINAL' | 'PROBLEMS' | 'OUTPUT' | 'DEBUG_CONSOLE'>('TERMINAL');
+  const [activeTerminalId, setActiveTerminalId] = useState<number | null>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [isResizing, setIsResizing] = useState(false);
+  const terminalRefs = useRef<{ [id: number]: HTMLDivElement | null }>({});
+
+  // Creates a new terminal instance
+  const createTerminal = useCallback(() => {
+    const newId = Date.now();
     const term = new XTerm({
-      cursorBlink: true,
+      theme: { background: '#1e1e1e', foreground: '#d4d4d4', cursor: '#d4d4d4' },
       fontSize: 14,
-      fontFamily: 'JetBrains Mono, Consolas, monospace',
-      theme: {
-        background: '#1E1E1E',
-        foreground: '#D4D4D4',
-        cursor: '#D4D4D4'
-      },
+      fontFamily: 'JetBrains Mono'
     });
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
-    xtermRef.current = term;
-    fitAddonRef.current = fitAddon;
+    term.loadAddon(new WebLinksAddon());
 
-    if (terminalRef.current) {
-      term.open(terminalRef.current);
-      fitAddon.fit();
-    }
-
-    wsRef.current = new WebSocket('ws://localhost:8000/ws/terminal');
-
-    wsRef.current.onopen = () => {
-      term.write('\r\nConnected to terminal server\r\n');
-      term.write('\r\nType your commands here...\r\n');
-      term.write('\r\n$ ');
+    const terminalInstance = {
+      id: newId,
+      name: `Terminal ${terminals.length + 1}`,
+      xterm: term,
     };
 
-    wsRef.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'output') {
-        term.write('\r\n' + data.content);
-        term.write('\r\n$ ');
-      }
-    };
+    setTerminals((prev) => [...prev, terminalInstance]);
+    setActiveTerminalId(newId);
 
-    let commandBuffer = '';
-    term.onKey(({ key, domEvent }) => {
-      const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
-
-      if (domEvent.keyCode === 13) { // Enter key
-        if (commandBuffer.trim()) {
-          wsRef.current?.send(JSON.stringify({
-            type: 'command',
-            content: commandBuffer
-          }));
-        }
-        commandBuffer = '';
-        term.write('\r\n$ ');
-      } else if (domEvent.keyCode === 8) { // Backspace
-        if (commandBuffer.length > 0) {
-          commandBuffer = commandBuffer.slice(0, -1);
-          term.write('\b \b');
-        }
-      } else if (printable) {
-        commandBuffer += key;
-        term.write(key);
+    setTimeout(() => {
+      if (terminalRefs.current[newId]) {
+        term.open(terminalRefs.current[newId]!);
+        fitAddon.fit();
       }
+    }, 0);
+
+    term.onData((data: string) => {
+      if (data.trim() === 'clear') term.clear();
+      else commands[data]?.();
+      onData?.(data);
+
+      if (autoScroll) term.scrollToBottom();
     });
+  }, [commands, onData, autoScroll, terminals]);
 
-    const handleResize = () => {
-      fitAddonRef.current?.fit();
-    };
+  // Close a terminal instance
+  const closeTerminal = (id: number) => {
+    setTerminals((prev) => prev.filter((term) => term.id !== id));
+    if (activeTerminalId === id) {
+      const remaining = terminals.filter((term) => term.id !== id);
+      setActiveTerminalId(remaining.length ? remaining[0].id : null);
+    }
+  };
 
-    window.addEventListener('resize', handleResize);
+  // Handle resizing of terminal container
+  const handleResizing = (e: MouseEvent) => {
+    if (isResizing) {
+      const height = window.innerHeight - e.clientY;
+      terminalRefs.current[activeTerminalId!]?.parentElement?.style.setProperty('height', `${height}px`);
+    }
+  };
 
-    return () => {
-      term.dispose();
-      wsRef.current?.close();
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    document.addEventListener('mousemove', handleResizing);
+    document.addEventListener('mouseup', handleResizeEnd);
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+    document.removeEventListener('mousemove', handleResizing);
+    document.removeEventListener('mouseup', handleResizeEnd);
+  };
+
+  const scrollToBottom = () => {
+    const activeTerminal = terminals.find((term) => term.id === activeTerminalId);
+    activeTerminal?.xterm.scrollToBottom();
+  };
+
+  const toggleAutoScroll = () => setAutoScroll((prev) => !prev);
+
+  useEffect(() => {
+    if (terminals.length === 0) createTerminal();
+  }, [createTerminal]);
+
+  useImperativeHandle(ref, () => ({
+    clearTerminal: () => {
+      const activeTerminal = terminals.find((term) => term.id === activeTerminalId);
+      activeTerminal?.xterm.clear();
+    },
+    writeToTerminal: (text: string) => {
+      const activeTerminal = terminals.find((term) => term.id === activeTerminalId);
+      activeTerminal?.xterm.write(text);
+    },
+  }));
+
+  // Renders content based on the active tab
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'TERMINAL':
+        return (
+          <TerminalBody>
+            {activeTerminalId && (
+              <div ref={(ref) => (terminalRefs.current[activeTerminalId] = ref)} style={{ height: '100%' }} />
+            )}
+          </TerminalBody>
+        );
+      case 'PROBLEMS':
+        return (
+          <TerminalBody>
+            <p>🚨 Error: Cannot find module 'express' in /src/server.ts</p>
+            <p>⚠️ Warning: Unused variable 'foo' in /src/app.ts</p>
+          </TerminalBody>
+        );
+      case 'OUTPUT':
+        return (
+          <TerminalBody>
+            <p>Build started...</p>
+            <p>Build succeeded. Serving on localhost:3000</p>
+          </TerminalBody>
+        );
+      case 'DEBUG_CONSOLE':
+        return (
+          <TerminalBody>
+            <p>Debug initialized.</p>
+            <p>Breakpoint set in /src/utils.ts at line 42</p>
+          </TerminalBody>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="h-64 bg-[#1E1E1E] rounded-lg overflow-hidden border border-gray-700">
-      <div className="h-8 bg-gray-800 flex items-center px-4 justify-between">
-        <div className="flex items-center">
-          <TerminalIcon className="h-4 w-4 text-gray-400 mr-2" />
-          <span className="text-sm text-gray-300">Terminal</span>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-      <div ref={terminalRef} className="h-[calc(100%-2rem)]" />
-    </div>
-  );
-};
+    <TerminalContainer>
+      <TerminalHeader>
+        {/* Static Tabs */}
+        <TerminalTab active={activeTab === 'PROBLEMS'} onClick={() => setActiveTab('PROBLEMS')}>PROBLEMS</TerminalTab>
+        <TerminalTab active={activeTab === 'OUTPUT'} onClick={() => setActiveTab('OUTPUT')}>OUTPUT</TerminalTab>
+        <TerminalTab active={activeTab === 'DEBUG_CONSOLE'} onClick={() => setActiveTab('DEBUG_CONSOLE')}>DEBUG CONSOLE</TerminalTab>
+        <TerminalTab active={activeTab === 'TERMINAL'} onClick={() => setActiveTab('TERMINAL')}>TERMINAL</TerminalTab>
 
-export default TerminalComponent;
+        {/* Toolbar with Action Buttons */}
+        <Toolbar>
+          <ToolbarButton onClick={createTerminal} title="New Terminal">
+            <AiOutlinePlus />
+          </ToolbarButton>
+          <FilterInput placeholder="Filter (e.g. text, **/*.ts, **/node_modules/**)" />
+          <ToolbarButton onClick={() => terminals[0]?.xterm.clear()} title="Clear Terminal">
+            <AiOutlineClear />
+          </ToolbarButton>
+          <ToolbarButton onClick={scrollToBottom} title="Scroll to Bottom">
+            <AiOutlineDown />
+          </ToolbarButton>
+          <ToolbarButton onClick={toggleAutoScroll} title={`Auto-scroll: ${autoScroll ? 'On' : 'Off'}`} active={autoScroll}>
+            <AiOutlineSync />
+          </ToolbarButton>
+        </Toolbar>
+      </TerminalHeader>
+
+      <div style={{ display: 'flex', height: '100%' }}>
+        {/* Sidebar for terminal instances */}
+        <TerminalsSidebar>
+          {terminals.map((term) => (
+            <SidebarTerminalItem
+              key={term.id}
+              active={term.id === activeTerminalId}
+              onClick={() => {
+                setActiveTab('TERMINAL');
+                setActiveTerminalId(term.id);
+              }}
+            >
+              {term.name}
+              <AiOutlineClose onClick={() => closeTerminal(term.id)} style={{ marginLeft: 8, cursor: 'pointer' }} />
+            </SidebarTerminalItem>
+          ))}
+        </TerminalsSidebar>
+
+        {/* Main content area */}
+        {renderTabContent()}
+      </div>
+
+      <Resizer
+        onMouseDown={handleResizeStart}
+        style={{ cursor: isResizing ? 'row-resize' : 'default' }}
+      />
+    </TerminalContainer>
+  );
+});
+
+export default Terminal;

@@ -1,3 +1,4 @@
+// src/styles/styled.d.ts
 import 'styled-components';
 
 declare module 'styled-components' {
@@ -11,6 +12,8 @@ declare module 'styled-components' {
       sideBar: string;
       terminal: string;
       border: string;
+      accent: string;
+      selection: string;
       foreground: {
         primary: string;
         secondary: string;
@@ -20,11 +23,9 @@ declare module 'styled-components' {
         primary: string;
         secondary: string;
         tertiary: string;
-        sideBar: string; // Ensure this is included here
+        sideBar: string;
         statusBar: string;
       };
-      accent: string;
-      selection: string;
     };
     spacing: {
       small: string;
