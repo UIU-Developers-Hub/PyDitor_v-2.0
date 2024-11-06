@@ -1,30 +1,43 @@
-
-# File: app/schemas/file.py
+# app/schemas/file.py
+from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from typing import Optional, List
 
-class FileBase(BaseModel):
-    """Base file schema."""
+class FileCreate(BaseModel):
     name: str
     path: str
-
-class FileCreate(FileBase):
-    """Schema for file creation."""
     content: Optional[str] = None
     is_directory: bool = False
 
-class FileUpdate(FileBase):
-    """Schema for file update."""
+class FileUpdate(BaseModel):
     content: Optional[str] = None
+    name: Optional[str] = None
 
-class FileResponse(FileBase):
-    """Schema for file response."""
-    id: int
+class FileRequest(BaseModel):
+    name: str
+    path: str
     content: Optional[str] = None
+    is_directory: bool = False
+
+class FileResponse(BaseModel):
+    id: int
+    name: str
+    path: str
+    content: Optional[str]
+    file_type: str
     is_directory: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    owner_id: int
+    updated_at: Optional[datetime]
+    user_id: int
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True
+
+class FileTreeItem(BaseModel):
+    id: int
+    name: str
+    path: str
+    is_directory: bool
+    children: Optional[List['FileTreeItem']] = None
+
+FileTreeItem.model_rebuild()

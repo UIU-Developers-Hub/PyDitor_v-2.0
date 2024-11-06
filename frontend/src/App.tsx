@@ -1,14 +1,17 @@
 // src/App.tsx
+
 import React, { useState, useRef } from 'react';
 import { ThemeProvider } from 'styled-components';
+import { Provider } from 'react-redux'; // Import Provider from react-redux
 import GlobalStyles from './styles/GlobalStyles';
 import theme from './styles/theme';
 import { FileSystemProvider } from './context/FileSystemContext';
 import { SidebarContainer } from './components/Sidebar/SidebarContainer';
 import { EditorPane } from './components/Editor/EditorPane';
 import CommandPalette from './components/Terminal/CommandPalette';
-import Terminal from './components/Terminal/Terminal'; // Import Terminal as default
+import Terminal from './components/Terminal/Terminal';
 import { FileNode } from './types/file';
+import store from './store'; // Import the configured Redux store
 
 const initialFiles: FileNode[] = [
   {
@@ -67,37 +70,39 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <ThemeProvider theme={theme}>
-      <GlobalStyles />
-      <FileSystemProvider>
-        <div style={{ display: 'flex', height: '100vh' }}>
-          <SidebarContainer
-            files={files}
-            onAddFile={addFile}
-            onDeleteFile={deleteFile}
-            onRenameFile={renameFile}
-          />
-          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#1e1e1e' }}>
-            {/* EditorPane occupies the top part of main */}
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              <EditorPane />
-            </div>
-            {/* Terminal occupies the bottom part of main */}
-            <div style={{ height: '300px', borderTop: '1px solid #333' }}>
-              <Terminal ref={terminalRef} />
-            </div>
-          </main>
-        </div>
-        {/* Render Command Palette conditionally */}
-        {isCommandPaletteVisible && (
-          <CommandPalette
-            commands={commands}
-            isVisible={isCommandPaletteVisible}
-            onClose={() => setIsCommandPaletteVisible(false)}
-          />
-        )}
-      </FileSystemProvider>
-    </ThemeProvider>
+    <Provider store={store}> {/* Wrap App in Provider and pass store */}
+      <ThemeProvider theme={theme}>
+        <GlobalStyles />
+        <FileSystemProvider>
+          <div style={{ display: 'flex', height: '100vh' }}>
+            <SidebarContainer
+              files={files}
+              onAddFile={addFile}
+              onDeleteFile={deleteFile}
+              onRenameFile={renameFile}
+            />
+            <main style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#1e1e1e' }}>
+              {/* EditorPane occupies the top part of main */}
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <EditorPane />
+              </div>
+              {/* Terminal occupies the bottom part of main */}
+              <div style={{ height: '300px', borderTop: '1px solid #333' }}>
+                <Terminal ref={terminalRef} />
+              </div>
+            </main>
+          </div>
+          {/* Render Command Palette conditionally */}
+          {isCommandPaletteVisible && (
+            <CommandPalette
+              commands={commands}
+              isVisible={isCommandPaletteVisible}
+              onClose={() => setIsCommandPaletteVisible(false)}
+            />
+          )}
+        </FileSystemProvider>
+      </ThemeProvider>
+    </Provider>
   );
 };
 

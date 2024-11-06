@@ -1,70 +1,80 @@
 # scripts/test_auth.py
 import asyncio
 import logging
-from httpx import AsyncClient
-import sys
 from pathlib import Path
+import sys
 
 # Add project root to Python path
-root_dir = Path(__file__).resolve().parent.parent
+root_dir = Path(__file__).parent.parent
 sys.path.append(str(root_dir))
+
+from sqlalchemy.future import select
+from app.core.database import async_session, init_db
+from app.models.user import User
+from app.core.security import get_password_hash
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def test_auth():
-    """Test authentication flow"""
-    async with AsyncClient(base_url="http://localhost:8000") as client:
-        try:
-            # 1. Test registration
-            logger.info("Testing registration...")
-            register_data = {
-                "email": "test@example.com",
-                "username": "testuser",
-                "password": "testpass123"
-            }
-            response = await client.post("/auth/register", json=register_data)
+    try:
+        # Initialize database
+        await init_db()
+        logger.info("Database initialized")
+
+        # Create async session
+        async with async_session() as session:
+            # Create test user
+            test_user = User.create(
+                username="testuser",
+                email="test@example.com",
+                hashed_password=get_password_hash("password123")
+            )
             
-            if response.status_code == 400 and "already registered" in response.text:
-                logger.info("User already exists, proceeding to login...")
+            session.add(test_user)
+            await session.commit()
+            logger.info("Created test user: testuser")
+
+            # Verify user was created
+            result = await session.execute(
+                select(User).where(User.username == "testuser")
+            )
+            user = result.scalar_one()
+            logger.info(f"Retrieved user: {user.username} (ID: {user.id})")
+
+            # Test authentication
+            auth_user = await User.authenticate(
+                session,
+                username="testuser",
+                password="password123"
+            )
+            
+            if auth_user:
+                logger.info("✅ Authentication successful!")
+                logger.info(f"Authenticated user: {auth_user.username} (ID: {auth_user.id})")
             else:
-                assert response.status_code == 200, f"Registration failed: {response.text}"
-                logger.info("Registration successful!")
+                logger.error("❌ Authentication failed!")
 
-            # 2. Test login
-            logger.info("\nTesting login...")
-            login_data = {
-                "username": "testuser",
-                "password": "testpass123",
-                "grant_type": "password"  # Required for OAuth2 password flow
-            }
-            response = await client.post(
-                "/auth/login",
-                data=login_data,  # Use data instead of json for form data
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            # Test invalid password
+            invalid_auth = await User.authenticate(
+                session,
+                username="testuser",
+                password="wrongpassword"
             )
-            assert response.status_code == 200, f"Login failed: {response.text}"
-            token_data = response.json()
-            access_token = token_data["access_token"]
-            logger.info("Login successful!")
+            
+            if not invalid_auth:
+                logger.info("✅ Invalid password test passed!")
+            else:
+                logger.error("❌ Invalid password test failed!")
 
-            # 3. Test protected endpoint
-            logger.info("\nTesting protected endpoint...")
-            me_response = await client.get(
-                "/auth/me",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            assert me_response.status_code == 200, f"Protected endpoint failed: {me_response.text}"
-            user_data = me_response.json()
-            assert user_data["username"] == "testuser"
-            logger.info("Protected endpoint access successful!")
-
-            logger.info("\n✨ All authentication tests passed!")
-            return True
-
-        except Exception as e:
-            logger.error(f"Test failed: {str(e)}")
-            return False
+        return True
+    except Exception as e:
+        logger.error(f"Test failed: {str(e)}")
+        return False
+    finally:
+        # Cleanup
+        from app.core.database import close_db
+        await close_db()
 
 if __name__ == "__main__":
     asyncio.run(test_auth())

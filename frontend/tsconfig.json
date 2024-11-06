@@ -2,33 +2,42 @@
 {
   "compilerOptions": {
     /* Target and Module Options */
-    "target": "ES2020",                           // Use modern JavaScript syntax for compatibility with ES2020.
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],     // Includes standard ES2020, DOM, and iterable libraries.
-    "module": "ESNext",                           // Specifies ESNext module syntax.
-    "moduleResolution": "bundler",                // Optimized module resolution mode for bundlers like Webpack/Vite.
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "node", 
 
     /* TypeScript File Handling */
-    "allowImportingTsExtensions": true,           // Allows importing TypeScript files with extensions.
-    "resolveJsonModule": true,                    // Enables JSON imports.
-    "isolatedModules": true,                      // Required for transpiling each file separately.
-    "noEmit": true,                               // Disables file output; only type-checking is done.
-    "jsx": "react-jsx",                           // Enables modern JSX syntax compatible with React 17+.
+    "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
 
     /* Linting and Type Checking */
-    "strict": true,                               // Enables all strict type-checking options.
-    "noUnusedLocals": true,                       // Flags unused local variables.
-    "noUnusedParameters": true,                   // Flags unused function parameters.
-    "noFallthroughCasesInSwitch": true,           // Prevents fallthrough errors in switch statements.
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
 
-    /* Skip Type Checking for Lib Files */
-    "skipLibCheck": true,                         // Skips type checking for library declaration files to speed up builds.
+    /* Optimization and Compatibility */
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,  // Add this for compatibility with certain modules like lodash.debounce
 
     /* Paths and Aliases */
-    "baseUrl": ".",                               // Sets the base URL for resolving non-relative module names.
+    "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"]                            // Alias for importing files from `src` using `@/path/to/module`.
+      "@/*": ["src/*"],
+      "@store/*": ["src/store/*"],   // Specific alias for `@store`
+      "~/*": ["./*"]
     }
   },
-  "include": ["src"],                              // Includes the `src` directory in the TypeScript compilation.
-  "references": [{ "path": "./tsconfig.node.json" }] // Adds a reference to `tsconfig.node.json` for server or Node-specific settings.
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "./tsconfig.node.json" }
+  ]
 }

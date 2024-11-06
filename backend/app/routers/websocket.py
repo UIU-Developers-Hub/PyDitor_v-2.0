@@ -1,17 +1,12 @@
 # File: backend/app/routers/websocket.py
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
-from typing import Dict, List, Set, Optional, AsyncIterator, Awaitable, TypedDict, Any
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends
+from typing import Dict, List, Set, Optional, Any, TypedDict  # Added TypedDict here
 import logging
 import json
 import asyncio
-from datetime import datetime
-from ..services.code_execution import (
-    code_execution_service,
-    TestCase,
-    TestResult,
-    TestSummary
-)
+from ..services.code_execution import code_execution_service, TestCase, TestResult, TestSummary
+from app.core.auth import verify_token  # Hypothetical auth function for demonstration
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -106,7 +101,6 @@ class ConnectionManager:
             elif message_type == "code_execution":
                 await self._handle_code_execution(websocket, content)
             else:
-                # Handle other message types...
                 pass
 
         except Exception as e:
@@ -125,7 +119,6 @@ class ConnectionManager:
         content: Dict[str, Any]
     ) -> None:
         try:
-            # Create test cases
             test_cases = [
                 TestCase(
                     input_data=test["input"],
@@ -135,13 +128,11 @@ class ConnectionManager:
                 for test in content.get("test_cases", [])
             ]
             
-            # Run tests
             results = await code_execution_service.run_tests(
                 content.get("code", ""),
                 test_cases
             )
             
-            # Send results to client
             await websocket.send_json({
                 "type": "test_results",
                 "data": {
@@ -155,7 +146,6 @@ class ConnectionManager:
                 }
             })
 
-            # Broadcast to other clients
             await self.broadcast_to_file(
                 file_id,
                 {
@@ -206,7 +196,8 @@ manager = ConnectionManager()
 async def code_websocket_endpoint(
     websocket: WebSocket,
     file_id: str,
-    client_id: str
+    client_id: str,
+    token: str = Depends(verify_token)  # Hypothetical token verification
 ) -> None:
     await manager.connect(websocket, client_id, file_id)
     try:

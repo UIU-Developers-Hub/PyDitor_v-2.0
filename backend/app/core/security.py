@@ -1,9 +1,10 @@
-# File: backend/app/core/security.py
+# backend/app/core/security.py
+
 from datetime import datetime, timedelta
 from typing import Optional, Union
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -52,3 +53,28 @@ async def get_current_user(
         raise credentials_exception
     return user
 
+# Additional function to authenticate WebSocket connections using query parameters
+async def get_current_user_websocket(
+    websocket: WebSocket,
+    token: str,
+    db: AsyncSession = Depends(get_db)
+) -> UserModel:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Could not validate WebSocket credentials",
+    )
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    query = select(UserModel).where(UserModel.username == username)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    
+    if user is None:
+        raise credentials_exception
+    return user

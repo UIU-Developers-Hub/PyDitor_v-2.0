@@ -22,7 +22,7 @@ export const TerminalHeader = styled.div`
   font-size: 13px;
 `;
 
-export const TerminalTab = styled.div<{ active?: boolean }>`
+export const TerminalTab = styled.div<{ $active?: boolean }>`
   display: flex;
   align-items: center;
   padding: 8px 12px;
@@ -36,8 +36,8 @@ export const TerminalTab = styled.div<{ active?: boolean }>`
     color: #ffffff;
   }
 
-  ${(props) =>
-    props.active &&
+  ${({ $active }) =>
+    $active &&
     css`
       border-bottom: 2px solid #007acc;
       color: #ffffff;
@@ -82,17 +82,17 @@ export const FilterInput = styled.input`
   }
 `;
 
-export const ToolbarButton = styled.button<{ active?: boolean }>`
+export const ToolbarButton = styled.button<{ $active?: boolean }>`
   background: none;
   border: none;
-  color: ${(props) => (props.active ? '#ffffff' : '#d4d4d4')};
+  color: ${(props) => (props.$active ? '#ffffff' : '#d4d4d4')};
   margin-right: 8px;
   cursor: pointer;
   padding: 4px;
   position: relative;
 
   svg {
-    fill: ${(props) => (props.active ? '#007acc' : '#d4d4d4')};
+    fill: ${(props) => (props.$active ? '#007acc' : '#d4d4d4')};
     width: 20px;
     height: 20px;
     transition: fill 0.2s ease;
@@ -161,7 +161,6 @@ export const Resizer = styled.div`
   width: 100%;
 `;
 
-// Sidebar for managing multiple terminals
 export const TerminalsSidebar = styled.div`
   width: 200px;
   background-color: #2d2d2d;
@@ -171,11 +170,11 @@ export const TerminalsSidebar = styled.div`
   overflow-y: auto;
 `;
 
-export const SidebarTerminalItem = styled.div<{ active?: boolean }>`
+export const SidebarTerminalItem = styled.div<{ $active?: boolean }>`
   padding: 8px 12px;
   cursor: pointer;
-  color: ${(props) => (props.active ? '#ffffff' : '#d4d4d4')};
-  background-color: ${(props) => (props.active ? '#333' : 'transparent')};
+  color: ${(props) => (props.$active ? '#ffffff' : '#d4d4d4')};
+  background-color: ${(props) => (props.$active ? '#333' : 'transparent')};
   display: flex;
   align-items: center;
   justify-content: space-between;
